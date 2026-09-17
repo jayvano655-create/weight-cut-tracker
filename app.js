@@ -99,6 +99,22 @@ const pesanAuth = document.getElementById("pesanAuth");
 const btnMasuk = document.getElementById("btnMasuk");
 const btnDaftar = document.getElementById("btnDaftar");
 const btnKeluar = document.getElementById("btnKeluar");
+const btnLihatPassword = document.getElementById("btnLihatPassword");
+
+// Tombol mata: gantiin type input password <-> text, ikon ganti
+// otomatis lewat CSS berdasar atribut data-terlihat
+btnLihatPassword.addEventListener("click", function () {
+  const sedangTerlihat = btnLihatPassword.getAttribute("data-terlihat") === "true";
+  if (sedangTerlihat) {
+    authPassword.type = "password";
+    btnLihatPassword.setAttribute("data-terlihat", "false");
+    btnLihatPassword.setAttribute("aria-label", "Lihat password");
+  } else {
+    authPassword.type = "text";
+    btnLihatPassword.setAttribute("data-terlihat", "true");
+    btnLihatPassword.setAttribute("aria-label", "Sembunyikan password");
+  }
+});
 
 btnDaftar.addEventListener("click", async function () {
   if (authEmail.value === "" || authPassword.value === "") {

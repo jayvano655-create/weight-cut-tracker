@@ -441,6 +441,52 @@ textarea:focus-visible {
   font-size: 16px;
 }
 
+/* Tombol "lihat password" (mata) - versi ringan, ikon polos tanpa
+   kotak background biar tidak berat/nyempil di sebelah field.
+   Ikon buka/tutup digantiin lewat CSS berdasar atribut data-terlihat,
+   bukan ganti innerHTML di JS */
+.btn-lihat-password {
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.btn-lihat-password:hover {
+  color: var(--ink);
+}
+
+.btn-lihat-password:active {
+  transform: scale(0.94);
+}
+
+.btn-lihat-password .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-lihat-password .icon-mata-tutup {
+  display: none;
+}
+
+.btn-lihat-password[data-terlihat="true"] .icon-mata-buka {
+  display: none;
+}
+
+.btn-lihat-password[data-terlihat="true"] .icon-mata-tutup {
+  display: block;
+}
+
 .field-body {
   flex: 1;
   min-width: 0;
@@ -893,6 +939,15 @@ textarea {
   font-size: 16px;
   color: var(--ink);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
+}
+
+/* Matiin ikon mata bawaan Microsoft Edge di field password - kita udah
+   punya tombol mata sendiri, jadi yang bawaan Edge ini disembunyikan
+   biar tidak dobel. Chrome/Firefox/Safari tidak punya elemen ini sama
+   sekali, jadi baris ini aman dan tidak berpengaruh di browser lain. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
 }
 
 input:not([type="date"]):not([type="time"]),

@@ -892,6 +892,61 @@ function formatTanggalSingkat(tanggalISO) {
   return `${bagian[2]}/${bagian[1]}`;
 }
 
+// Versi lengkap dengan tahun, khusus buat teks yang dibagikan keluar
+// (WhatsApp dll) biar jelas tahunnya, tidak ambigu kayak versi singkat.
+function formatTanggalLengkap(tanggalISO) {
+  const bagian = tanggalISO.split("-");
+  return `${bagian[2]}/${bagian[1]}/${bagian[0]}`;
+}
+
+/* ---------- Bagikan Progress ---------- */
+
+const btnShareProgress = document.getElementById("btnShareProgress");
+
+btnShareProgress.addEventListener("click", function () {
+  const nama = document.getElementById("nama").value || "Saya";
+  const dataAktif = catatanPeriodeAktif();
+  const beratTerkini = dataAktif.length > 0 ? Number(dataAktif[dataAktif.length - 1].berat) : null;
+
+  const targetBeratRaw = document.getElementById("target-berat").value;
+  const tanggalWeighinRaw = document.getElementById("tanggal-weighin").value;
+  const perubahan = document.getElementById("ringkasanPerubahan").textContent;
+
+  let teks = `💪 Progres Weight Cut - ${nama}\n\n`;
+
+  if (beratTerkini !== null) {
+    teks += `Berat sekarang: ${formatBerat(beratTerkini)}\n`;
+  }
+
+  if (targetBeratRaw !== "") {
+    const targetKg = bacaBeratKg(targetBeratRaw);
+    teks += `Target: ${formatBerat(targetKg)}`;
+    if (tanggalWeighinRaw !== "") {
+      teks += ` (weigh-in ${formatTanggalLengkap(tanggalWeighinRaw)})`;
+    }
+    teks += "\n";
+  }
+
+  if (!layarTarget.classList.contains("layar-tersembunyi") && angkaHari.textContent !== "–") {
+    teks += `${angkaHari.textContent} hari lagi menuju weigh-in!\n`;
+  }
+
+  teks += `\nPerubahan minggu ini: ${perubahan}\n`;
+  teks += `\nDilacak pakai Weight Cut Tracker`;
+
+  // Kalau device-nya dukung Web Share API (kebanyakan HP), munculin
+  // menu share bawaan (bisa pilih WhatsApp atau app lain). Kalau tidak
+  // dukung (kebanyakan desktop), langsung buka WhatsApp Web.
+  if (navigator.share) {
+    navigator.share({ text: teks }).catch(function () {
+      // User batal share - tidak perlu ditampilin sebagai error
+    });
+  } else {
+    const urlWa = "https://wa.me/?text=" + encodeURIComponent(teks);
+    window.open(urlWa, "_blank");
+  }
+});
+
 function gambarGrafik() {
   grafikBerat.innerHTML = "";
   grafikTanggal.innerHTML = "";

@@ -1074,6 +1074,35 @@ textarea:focus {
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
+.btn-share-progress {
+  margin-top: 18px;
+  width: 100%;
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--energy-grad);
+  color: var(--energy-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: var(--energy-shadow);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.btn-share-progress:hover {
+  filter: brightness(1.04);
+}
+
+.btn-share-progress:active {
+  transform: scale(0.98);
+}
+
 .btn-periode-baru:hover {
   background-color: var(--surface-hover);
   color: var(--ink);

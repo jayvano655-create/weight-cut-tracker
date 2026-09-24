@@ -899,48 +899,346 @@ function formatTanggalLengkap(tanggalISO) {
   return `${bagian[2]}/${bagian[1]}/${bagian[0]}`;
 }
 
-/* ---------- Bagikan Progress ---------- */
+/* ---------- Bagikan Progress (jadi gambar kartu) ---------- */
 
 const btnShareProgress = document.getElementById("btnShareProgress");
 
-btnShareProgress.addEventListener("click", function () {
-  const nama = document.getElementById("nama").value || "Saya";
+// Helper: gambar kotak dengan sudut membulat di canvas
+function gambarKotakBulat(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+// Helper: gambar mini grafik garis progres berat di dalam canvas
+function gambarMiniGrafikCanvas(ctx, data, x, y, w, h, warna) {
+  if (data.length === 0) {
+    ctx.fillStyle = warna.teksMutedLemah;
+    ctx.font = "22px Inter";
+    ctx.textAlign = "center";
+    ctx.fillText("Belum ada catatan progres", x + w / 2, y + h / 2 + 8);
+    return;
+  }
+
+  const semuaBerat = data.map(function (c) {
+    return Number(c.berat);
+  });
+  const min = Math.min(...semuaBerat);
+  const max = Math.max(...semuaBerat);
+  const rentang = max - min || 1;
+
+  const titik = data.map(function (catatan, i) {
+    const xi = data.length === 1 ? x + w / 2 : x + (i / (data.length - 1)) * w;
+    const persenY = ((Number(catatan.berat) - min) / rentang) * 0.7 + 0.15;
+    const yi = y + h - persenY * h;
+    return { x: xi, y: yi };
+  });
+
+  if (titik.length > 1) {
+    // Area gradient di bawah garis
+    const gradArea = ctx.createLinearGradient(0, y, 0, y + h);
+    gradArea.addColorStop(0, warna.areaGradAtas);
+    gradArea.addColorStop(1, "rgba(107, 227, 156, 0)");
+
+    ctx.beginPath();
+    ctx.moveTo(titik[0].x, titik[0].y);
+    for (let i = 1; i < titik.length; i++) ctx.lineTo(titik[i].x, titik[i].y);
+    ctx.lineTo(titik[titik.length - 1].x, y + h);
+    ctx.lineTo(titik[0].x, y + h);
+    ctx.closePath();
+    ctx.fillStyle = gradArea;
+    ctx.fill();
+
+    // Garis progres
+    ctx.beginPath();
+    ctx.moveTo(titik[0].x, titik[0].y);
+    for (let i = 1; i < titik.length; i++) ctx.lineTo(titik[i].x, titik[i].y);
+    ctx.strokeStyle = warna.aksen;
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowColor = warna.aksenGlow;
+    ctx.shadowBlur = warna.glowGrafik;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // Titik-titik data
+  titik.forEach(function (t, i) {
+    const terkini = i === titik.length - 1;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, terkini ? 9 : 6, 0, Math.PI * 2);
+    ctx.fillStyle = warna.aksen;
+    ctx.fill();
+    if (terkini) {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 9, 0, Math.PI * 2);
+      ctx.strokeStyle = warna.titikStroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  });
+}
+
+// Bikin canvas kartu progres lengkap, isinya nama, berat, target, hari
+// tersisa, mini grafik, dan perubahan mingguan. Warnanya ikut tema
+// gelap/terang yang lagi aktif di web.
+async function buatGambarProgress() {
+  // Pastikan font custom (Oswald, Space Mono, Inter) sudah kepakai
+  // sebelum digambar di canvas - kalau tidak, canvas jatuhnya ke font
+  // default sistem walau font-nya sebenarnya sudah ke-load di halaman.
+  await Promise.all([
+    document.fonts.load("700 90px Oswald"),
+    document.fonts.load("700 28px Oswald"),
+    document.fonts.load("500 22px Oswald"),
+    document.fonts.load("700 26px 'Space Mono'"),
+    document.fonts.load("400 24px Inter"),
+    document.fonts.load("600 22px Inter"),
+  ]);
+
+  const modeGelap = document.documentElement.getAttribute("data-theme") === "dark";
+
+  // Dua palet warna - hijau tetap jadi aksen di keduanya (identitas
+  // brand), tapi background & teks menyesuaikan tema aktif.
+  const warna = modeGelap
+    ? {
+        bgAtas: "#1B1713",
+        bgBawah: "#0D0A08",
+        teksUtama: "#F2EEE5",
+        teksMutedKuat: "rgba(242, 238, 229, 0.7)",
+        teksMuted: "rgba(242, 238, 229, 0.55)",
+        teksMutedLemah: "rgba(242, 238, 229, 0.4)",
+        aksen: "#6BE39C",
+        aksenGlow: "rgba(107, 227, 156, 0.6)",
+        glowHero: 24,
+        glowGrafik: 14,
+        areaGradAtas: "rgba(107, 227, 156, 0.3)",
+        kartuFill: "rgba(255, 255, 255, 0.03)",
+        kartuBorder: "rgba(242, 238, 229, 0.08)",
+        garisPemisah: "rgba(242, 238, 229, 0.12)",
+        badgeTeks: "#0D2B18",
+        titikStroke: "#0D0A08",
+      }
+    : {
+        bgAtas: "#F3EFE6",
+        bgBawah: "#E8E1D2",
+        teksUtama: "#211D19",
+        teksMutedKuat: "rgba(33, 29, 25, 0.78)",
+        teksMuted: "rgba(33, 29, 25, 0.6)",
+        teksMutedLemah: "rgba(33, 29, 25, 0.42)",
+        aksen: "#1F7A3D",
+        aksenGlow: "rgba(31, 122, 61, 0.3)",
+        glowHero: 0,
+        glowGrafik: 0,
+        areaGradAtas: "rgba(31, 122, 61, 0.16)",
+        kartuFill: "rgba(255, 255, 255, 0.55)",
+        kartuBorder: "rgba(33, 29, 25, 0.1)",
+        garisPemisah: "rgba(33, 29, 25, 0.14)",
+        badgeTeks: "#0D2B18",
+        titikStroke: "#FBF9F5",
+      };
+
+  const lebar = 720;
+  const tinggi = 1000;
+  const canvas = document.createElement("canvas");
+  canvas.width = lebar;
+  canvas.height = tinggi;
+  const ctx = canvas.getContext("2d");
+
+  // Background gradient sesuai tema
+  const gradBg = ctx.createLinearGradient(0, 0, 0, tinggi);
+  gradBg.addColorStop(0, warna.bgAtas);
+  gradBg.addColorStop(1, warna.bgBawah);
+  ctx.fillStyle = gradBg;
+  ctx.fillRect(0, 0, lebar, tinggi);
+
+  const pad = 56;
+
+  // Header: badge WCT (selalu gradient hijau, tema-invarian - identitas
+  // brand) + judul
+  gambarKotakBulat(ctx, pad, 56, 56, 56, 16);
+  const gradBadge = ctx.createLinearGradient(pad, 56, pad + 56, 112);
+  gradBadge.addColorStop(0, "#6BE39C");
+  gradBadge.addColorStop(1, "#2FAE68");
+  ctx.fillStyle = gradBadge;
+  ctx.fill();
+  ctx.fillStyle = warna.badgeTeks;
+  ctx.font = "700 20px Oswald";
+  ctx.textAlign = "center";
+  ctx.fillText("WCT", pad + 28, 92);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = warna.teksUtama;
+  ctx.font = "600 26px Oswald";
+  ctx.fillText("WEIGHT CUT TRACKER", pad + 72, 82);
+  ctx.fillStyle = warna.teksMuted;
+  ctx.font = "400 18px Inter";
+  ctx.fillText("Progres Weight Cut", pad + 72, 108);
+
+  // Nama pengguna
+  const nama = document.getElementById("nama").value || "Pengguna";
+  ctx.fillStyle = warna.teksMutedKuat;
+  ctx.font = "600 24px Inter";
+  ctx.textAlign = "center";
+  ctx.fillText(nama.toUpperCase(), lebar / 2, 195);
+
+  // Hero: berat sekarang (angka besar, hijau - dengan glow di mode
+  // gelap, solid tanpa glow di mode terang biar tidak buram)
   const dataAktif = catatanPeriodeAktif();
   const beratTerkini = dataAktif.length > 0 ? Number(dataAktif[dataAktif.length - 1].berat) : null;
+  const teksBerat = beratTerkini !== null ? formatBerat(beratTerkini) : "- kg";
+  const [angkaBerat, satuanBerat] = teksBerat.split(" ");
 
+  ctx.textAlign = "center";
+  ctx.fillStyle = warna.aksen;
+  ctx.shadowColor = warna.aksenGlow;
+  ctx.shadowBlur = warna.glowHero;
+  ctx.font = "700 108px 'Space Mono'";
+  ctx.fillText(angkaBerat, lebar / 2, 340);
+  ctx.font = "700 28px Oswald";
+  ctx.fillText((satuanBerat || "KG").toUpperCase(), lebar / 2, 380);
+  ctx.shadowBlur = 0;
+
+  // Stats row: Target & Hari Tersisa
+  const yStats = 430;
+  const targetBeratRaw = document.getElementById("target-berat").value;
+  const teksTarget = targetBeratRaw !== "" ? formatBerat(bacaBeratKg(targetBeratRaw)) : "-";
+  const teksHari =
+    !layarTarget.classList.contains("layar-tersembunyi") && angkaHari.textContent !== "–"
+      ? angkaHari.textContent
+      : "-";
+
+  function gambarStatKotak(xTengah, label, nilai) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = warna.teksMuted;
+    ctx.font = "600 16px Inter";
+    ctx.fillText(label.toUpperCase(), xTengah, yStats);
+    ctx.fillStyle = warna.teksUtama;
+    ctx.font = "700 34px 'Space Mono'";
+    ctx.fillText(nilai, xTengah, yStats + 42);
+  }
+
+  gambarStatKotak(lebar * 0.28, "Target", teksTarget);
+  gambarStatKotak(lebar * 0.72, "Hari Tersisa", teksHari);
+
+  // Garis pemisah tipis
+  ctx.strokeStyle = warna.garisPemisah;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(lebar / 2, yStats - 30);
+  ctx.lineTo(lebar / 2, yStats + 44);
+  ctx.stroke();
+
+  // Kartu mini grafik
+  const yGrafik = 520;
+  const tinggiGrafik = 260;
+  gambarKotakBulat(ctx, pad, yGrafik, lebar - pad * 2, tinggiGrafik, 24);
+  ctx.fillStyle = warna.kartuFill;
+  ctx.fill();
+  ctx.strokeStyle = warna.kartuBorder;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  gambarMiniGrafikCanvas(ctx, dataAktif, pad + 36, yGrafik + 36, lebar - pad * 2 - 72, tinggiGrafik - 72, warna);
+
+  // Perubahan minggu ini
+  const perubahan = document.getElementById("ringkasanPerubahan").textContent;
+  ctx.textAlign = "center";
+  ctx.fillStyle = warna.teksMuted;
+  ctx.font = "600 18px Inter";
+  ctx.fillText("PERUBAHAN MINGGU INI", lebar / 2, 850);
+  ctx.fillStyle = warna.teksUtama;
+  ctx.font = "700 40px 'Space Mono'";
+  ctx.fillText(perubahan, lebar / 2, 895);
+
+  // Footer
+  ctx.fillStyle = warna.teksMutedLemah;
+  ctx.font = "400 16px Inter";
+  ctx.fillText("Dilacak pakai Weight Cut Tracker", lebar / 2, 955);
+
+  return canvas;
+}
+
+// Coba share sebagai FILE gambar (kalau device dukung). Return true
+// kalau berhasil dibagikan sebagai gambar, false kalau tidak didukung
+// (dan sudah otomatis di-download sebagai gantinya).
+async function bagikanSebagaiGambar(teksCaption) {
+  const canvas = await buatGambarProgress();
+
+  return new Promise(function (resolve) {
+    canvas.toBlob(async function (blob) {
+      if (!blob) {
+        resolve(false);
+        return;
+      }
+
+      const file = new File([blob], "progress-weight-cut.png", { type: "image/png" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], text: teksCaption });
+        } catch (e) {
+          // User batal share - tidak masalah, anggap sudah selesai
+        }
+        resolve(true);
+        return;
+      }
+
+      // Device tidak dukung share file - otomatis unduh gambarnya
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "progress-weight-cut.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 2000);
+      resolve(false);
+    }, "image/png");
+  });
+}
+
+btnShareProgress.addEventListener("click", async function () {
+  const nama = document.getElementById("nama").value || "Saya";
+
+  const berhasilShareGambar = await bagikanSebagaiGambar(`Progres Weight Cut - ${nama}`);
+
+  if (berhasilShareGambar) return;
+
+  // Fallback kalau device tidak dukung share gambar: gambarnya udah
+  // otomatis ke-download, sekarang buka WhatsApp dengan teks ringkasan
+  // siap kirim biar user tinggal lampirkan gambarnya secara manual.
+  const dataAktif = catatanPeriodeAktif();
+  const beratTerkini = dataAktif.length > 0 ? Number(dataAktif[dataAktif.length - 1].berat) : null;
   const targetBeratRaw = document.getElementById("target-berat").value;
   const tanggalWeighinRaw = document.getElementById("tanggal-weighin").value;
   const perubahan = document.getElementById("ringkasanPerubahan").textContent;
 
   let teks = `💪 Progres Weight Cut - ${nama}\n\n`;
-
-  if (beratTerkini !== null) {
-    teks += `Berat sekarang: ${formatBerat(beratTerkini)}\n`;
-  }
-
+  if (beratTerkini !== null) teks += `Berat sekarang: ${formatBerat(beratTerkini)}\n`;
   if (targetBeratRaw !== "") {
     const targetKg = bacaBeratKg(targetBeratRaw);
     teks += `Target: ${formatBerat(targetKg)}`;
-    if (tanggalWeighinRaw !== "") {
-      teks += ` (weigh-in ${formatTanggalLengkap(tanggalWeighinRaw)})`;
-    }
+    if (tanggalWeighinRaw !== "") teks += ` (weigh-in ${formatTanggalLengkap(tanggalWeighinRaw)})`;
     teks += "\n";
   }
-
   if (!layarTarget.classList.contains("layar-tersembunyi") && angkaHari.textContent !== "–") {
     teks += `${angkaHari.textContent} hari lagi menuju weigh-in!\n`;
   }
+  teks += `\nPerubahan minggu ini: ${perubahan}\n\nDilacak pakai Weight Cut Tracker (gambar sudah terunduh, lampirkan manual)`;
 
-  teks += `\nPerubahan minggu ini: ${perubahan}\n`;
-  teks += `\nDilacak pakai Weight Cut Tracker`;
-
-  // Kalau device-nya dukung Web Share API (kebanyakan HP), munculin
-  // menu share bawaan (bisa pilih WhatsApp atau app lain). Kalau tidak
-  // dukung (kebanyakan desktop), langsung buka WhatsApp Web.
   if (navigator.share) {
-    navigator.share({ text: teks }).catch(function () {
-      // User batal share - tidak perlu ditampilin sebagai error
-    });
+    navigator.share({ text: teks }).catch(function () {});
   } else {
     const urlWa = "https://wa.me/?text=" + encodeURIComponent(teks);
     window.open(urlWa, "_blank");

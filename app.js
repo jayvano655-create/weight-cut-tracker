@@ -922,7 +922,7 @@ function gambarKotakBulat(ctx, x, y, w, h, r) {
 function gambarMiniGrafikCanvas(ctx, data, x, y, w, h, warna) {
   if (data.length === 0) {
     ctx.fillStyle = warna.teksMutedLemah;
-    ctx.font = "22px Inter";
+    ctx.font = "20px Inter";
     ctx.textAlign = "center";
     ctx.fillText("Belum ada catatan progres", x + w / 2, y + h / 2 + 8);
     return;
@@ -943,7 +943,6 @@ function gambarMiniGrafikCanvas(ctx, data, x, y, w, h, warna) {
   });
 
   if (titik.length > 1) {
-    // Area gradient di bawah garis
     const gradArea = ctx.createLinearGradient(0, y, 0, y + h);
     gradArea.addColorStop(0, warna.areaGradAtas);
     gradArea.addColorStop(1, "rgba(107, 227, 156, 0)");
@@ -957,7 +956,6 @@ function gambarMiniGrafikCanvas(ctx, data, x, y, w, h, warna) {
     ctx.fillStyle = gradArea;
     ctx.fill();
 
-    // Garis progres
     ctx.beginPath();
     ctx.moveTo(titik[0].x, titik[0].y);
     for (let i = 1; i < titik.length; i++) ctx.lineTo(titik[i].x, titik[i].y);
@@ -971,144 +969,186 @@ function gambarMiniGrafikCanvas(ctx, data, x, y, w, h, warna) {
     ctx.shadowBlur = 0;
   }
 
-  // Titik-titik data
   titik.forEach(function (t, i) {
     const terkini = i === titik.length - 1;
     ctx.beginPath();
-    ctx.arc(t.x, t.y, terkini ? 9 : 6, 0, Math.PI * 2);
+    ctx.arc(t.x, t.y, terkini ? 9 : 5, 0, Math.PI * 2);
     ctx.fillStyle = warna.aksen;
     ctx.fill();
     if (terkini) {
       ctx.beginPath();
       ctx.arc(t.x, t.y, 9, 0, Math.PI * 2);
       ctx.strokeStyle = warna.titikStroke;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.stroke();
     }
   });
 }
 
-// Bikin canvas kartu progres lengkap, isinya nama, berat, target, hari
-// tersisa, mini grafik, dan perubahan mingguan. Warnanya ikut tema
-// gelap/terang yang lagi aktif di web.
+// Bikin canvas kartu progres: latar halaman + kartu utama melayang di
+// tengah dengan bayangan, biar terlihat seperti kartu yang dirancang,
+// bukan sekadar kotak polos. Warnanya menyesuaikan tema aktif di web.
 async function buatGambarProgress() {
-  // Pastikan font custom (Oswald, Space Mono, Inter) sudah kepakai
-  // sebelum digambar di canvas - kalau tidak, canvas jatuhnya ke font
-  // default sistem walau font-nya sebenarnya sudah ke-load di halaman.
+  // Pastikan font custom sudah bisa dipakai sebelum digambar di canvas
   await Promise.all([
-    document.fonts.load("700 90px Oswald"),
-    document.fonts.load("700 28px Oswald"),
-    document.fonts.load("500 22px Oswald"),
-    document.fonts.load("700 26px 'Space Mono'"),
-    document.fonts.load("400 24px Inter"),
-    document.fonts.load("600 22px Inter"),
+    document.fonts.load("700 120px 'Space Mono'"),
+    document.fonts.load("700 32px 'Space Mono'"),
+    document.fonts.load("700 30px Oswald"),
+    document.fonts.load("600 34px Oswald"),
+    document.fonts.load("400 20px Inter"),
+    document.fonts.load("600 16px Inter"),
+    document.fonts.load("700 16px Inter"),
   ]);
 
   const modeGelap = document.documentElement.getAttribute("data-theme") === "dark";
 
-  // Dua palet warna - hijau tetap jadi aksen di keduanya (identitas
-  // brand), tapi background & teks menyesuaikan tema aktif.
   const warna = modeGelap
     ? {
-        bgAtas: "#1B1713",
-        bgBawah: "#0D0A08",
-        teksUtama: "#F2EEE5",
-        teksMutedKuat: "rgba(242, 238, 229, 0.7)",
-        teksMuted: "rgba(242, 238, 229, 0.55)",
-        teksMutedLemah: "rgba(242, 238, 229, 0.4)",
-        aksen: "#6BE39C",
-        aksenGlow: "rgba(107, 227, 156, 0.6)",
-        glowHero: 24,
-        glowGrafik: 14,
-        areaGradAtas: "rgba(107, 227, 156, 0.3)",
-        kartuFill: "rgba(255, 255, 255, 0.03)",
+        pageBg: "#0A0806",
+        kartuAtas: "#1E1914",
+        kartuBawah: "#100D0A",
         kartuBorder: "rgba(242, 238, 229, 0.08)",
-        garisPemisah: "rgba(242, 238, 229, 0.12)",
+        bayangan: "rgba(0, 0, 0, 0.55)",
+        teksUtama: "#F5F1E8",
+        teksMutedKuat: "rgba(245, 241, 232, 0.75)",
+        teksMuted: "rgba(245, 241, 232, 0.5)",
+        teksMutedLemah: "rgba(245, 241, 232, 0.35)",
+        aksen: "#6BE39C",
+        aksenGlow: "rgba(107, 227, 156, 0.55)",
+        glowHero: 22,
+        glowGrafik: 12,
+        areaGradAtas: "rgba(107, 227, 156, 0.28)",
+        grafikFill: "rgba(255, 255, 255, 0.025)",
+        garisPemisah: "rgba(242, 238, 229, 0.1)",
+        pilFillNaik: "rgba(255, 107, 97, 0.14)",
+        pilFillTurun: "rgba(107, 227, 156, 0.14)",
+        merah: "#FF6B61",
         badgeTeks: "#0D2B18",
-        titikStroke: "#0D0A08",
+        titikStroke: "#100D0A",
       }
     : {
-        bgAtas: "#F3EFE6",
-        bgBawah: "#E8E1D2",
+        pageBg: "#DCD4C2",
+        kartuAtas: "#FDFBF7",
+        kartuBawah: "#F3EEE3",
+        kartuBorder: "rgba(33, 29, 25, 0.07)",
+        bayangan: "rgba(33, 29, 25, 0.22)",
         teksUtama: "#211D19",
-        teksMutedKuat: "rgba(33, 29, 25, 0.78)",
-        teksMuted: "rgba(33, 29, 25, 0.6)",
-        teksMutedLemah: "rgba(33, 29, 25, 0.42)",
-        aksen: "#1F7A3D",
-        aksenGlow: "rgba(31, 122, 61, 0.3)",
+        teksMutedKuat: "rgba(33, 29, 25, 0.75)",
+        teksMuted: "rgba(33, 29, 25, 0.55)",
+        teksMutedLemah: "rgba(33, 29, 25, 0.38)",
+        aksen: "#1F8A46",
+        aksenGlow: "rgba(31, 138, 70, 0.25)",
         glowHero: 0,
         glowGrafik: 0,
-        areaGradAtas: "rgba(31, 122, 61, 0.16)",
-        kartuFill: "rgba(255, 255, 255, 0.55)",
-        kartuBorder: "rgba(33, 29, 25, 0.1)",
-        garisPemisah: "rgba(33, 29, 25, 0.14)",
+        areaGradAtas: "rgba(31, 138, 70, 0.15)",
+        grafikFill: "rgba(33, 29, 25, 0.025)",
+        garisPemisah: "rgba(33, 29, 25, 0.1)",
+        pilFillNaik: "rgba(179, 38, 30, 0.1)",
+        pilFillTurun: "rgba(31, 138, 70, 0.1)",
+        merah: "#B3261E",
         badgeTeks: "#0D2B18",
-        titikStroke: "#FBF9F5",
+        titikStroke: "#FDFBF7",
       };
 
   const lebar = 720;
-  const tinggi = 1000;
+  const tinggi = 1174;
   const canvas = document.createElement("canvas");
   canvas.width = lebar;
   canvas.height = tinggi;
   const ctx = canvas.getContext("2d");
 
-  // Background gradient sesuai tema
-  const gradBg = ctx.createLinearGradient(0, 0, 0, tinggi);
-  gradBg.addColorStop(0, warna.bgAtas);
-  gradBg.addColorStop(1, warna.bgBawah);
-  ctx.fillStyle = gradBg;
+  // Lapis 1: latar halaman penuh
+  ctx.fillStyle = warna.pageBg;
   ctx.fillRect(0, 0, lebar, tinggi);
 
-  const pad = 56;
+  // Lapis 2: kartu utama, sedikit inset dari tepi, dengan bayangan -
+  // ini yang bikin hasilnya terasa seperti kartu, bukan gambar polos.
+  const marginKartu = 32;
+  const kx = marginKartu;
+  const ky = marginKartu;
+  const kw = lebar - marginKartu * 2;
+  const kh = tinggi - marginKartu * 2;
 
-  // Header: badge WCT (selalu gradient hijau, tema-invarian - identitas
-  // brand) + judul
-  gambarKotakBulat(ctx, pad, 56, 56, 56, 16);
-  const gradBadge = ctx.createLinearGradient(pad, 56, pad + 56, 112);
+  ctx.save();
+  ctx.shadowColor = warna.bayangan;
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 16;
+  gambarKotakBulat(ctx, kx, ky, kw, kh, 36);
+  const gradKartu = ctx.createLinearGradient(0, ky, 0, ky + kh);
+  gradKartu.addColorStop(0, warna.kartuAtas);
+  gradKartu.addColorStop(1, warna.kartuBawah);
+  ctx.fillStyle = gradKartu;
+  ctx.fill();
+  ctx.restore();
+
+  gambarKotakBulat(ctx, kx, ky, kw, kh, 36);
+  ctx.strokeStyle = warna.kartuBorder;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  const pad = kx + 56;
+  const lebarKonten = kw - 112;
+
+  // Header: badge WCT (identitas brand, tema-invarian) + watermark
+  gambarKotakBulat(ctx, pad, ky + 48, 48, 48, 14);
+  const gradBadge = ctx.createLinearGradient(pad, ky + 48, pad + 48, ky + 96);
   gradBadge.addColorStop(0, "#6BE39C");
   gradBadge.addColorStop(1, "#2FAE68");
   ctx.fillStyle = gradBadge;
   ctx.fill();
   ctx.fillStyle = warna.badgeTeks;
-  ctx.font = "700 20px Oswald";
+  ctx.font = "700 16px Oswald";
   ctx.textAlign = "center";
-  ctx.fillText("WCT", pad + 28, 92);
+  ctx.fillText("WCT", pad + 24, ky + 78);
 
+  ctx.textAlign = "right";
+  ctx.fillStyle = warna.teksMuted;
+  ctx.font = "700 14px Inter";
+  ctx.fillText("WEIGHT CUT TRACKER", pad + lebarKonten, ky + 78);
+
+  // Nama pengguna - jadi header utama
+  const nama = document.getElementById("nama").value || "Pengguna";
   ctx.textAlign = "left";
   ctx.fillStyle = warna.teksUtama;
-  ctx.font = "600 26px Oswald";
-  ctx.fillText("WEIGHT CUT TRACKER", pad + 72, 82);
+  ctx.font = "600 34px Oswald";
+  ctx.fillText(nama, pad, ky + 175);
   ctx.fillStyle = warna.teksMuted;
   ctx.font = "400 18px Inter";
-  ctx.fillText("Progres Weight Cut", pad + 72, 108);
+  ctx.fillText("Progres Weight Cut", pad, ky + 204);
 
-  // Nama pengguna
-  const nama = document.getElementById("nama").value || "Pengguna";
-  ctx.fillStyle = warna.teksMutedKuat;
-  ctx.font = "600 24px Inter";
-  ctx.textAlign = "center";
-  ctx.fillText(nama.toUpperCase(), lebar / 2, 195);
+  // Garis pemisah di bawah header
+  ctx.strokeStyle = warna.garisPemisah;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, ky + 232);
+  ctx.lineTo(pad + lebarKonten, ky + 232);
+  ctx.stroke();
 
-  // Hero: berat sekarang (angka besar, hijau - dengan glow di mode
-  // gelap, solid tanpa glow di mode terang biar tidak buram)
+  // Hero: berat sekarang
   const dataAktif = catatanPeriodeAktif();
   const beratTerkini = dataAktif.length > 0 ? Number(dataAktif[dataAktif.length - 1].berat) : null;
   const teksBerat = beratTerkini !== null ? formatBerat(beratTerkini) : "- kg";
   const [angkaBerat, satuanBerat] = teksBerat.split(" ");
 
   ctx.textAlign = "center";
+  ctx.fillStyle = warna.teksMuted;
+  ctx.font = "700 15px Inter";
+  ctx.fillText("BERAT SAAT INI", lebar / 2, ky + 290);
+
   ctx.fillStyle = warna.aksen;
   ctx.shadowColor = warna.aksenGlow;
   ctx.shadowBlur = warna.glowHero;
-  ctx.font = "700 108px 'Space Mono'";
-  ctx.fillText(angkaBerat, lebar / 2, 340);
-  ctx.font = "700 28px Oswald";
-  ctx.fillText((satuanBerat || "KG").toUpperCase(), lebar / 2, 380);
+  ctx.font = "700 118px 'Space Mono'";
+  ctx.fillText(angkaBerat, lebar / 2, ky + 425);
+  ctx.font = "700 26px Oswald";
+  ctx.fillText((satuanBerat || "KG").toUpperCase(), lebar / 2, ky + 465);
   ctx.shadowBlur = 0;
 
-  // Stats row: Target & Hari Tersisa
-  const yStats = 430;
+  // Stats row: Target & Hari Tersisa, sebagai dua pil bersebelahan
+  const yPil = ky + 510;
+  const tinggiPil = 92;
+  const lebarPil = (lebarKonten - 16) / 2;
+
   const targetBeratRaw = document.getElementById("target-berat").value;
   const teksTarget = targetBeratRaw !== "" ? formatBerat(bacaBeratKg(targetBeratRaw)) : "-";
   const teksHari =
@@ -1116,60 +1156,70 @@ async function buatGambarProgress() {
       ? angkaHari.textContent
       : "-";
 
-  function gambarStatKotak(xTengah, label, nilai) {
+  function gambarPilStat(x, label, nilai) {
+    gambarKotakBulat(ctx, x, yPil, lebarPil, tinggiPil, 18);
+    ctx.fillStyle = warna.grafikFill;
+    ctx.fill();
+    ctx.strokeStyle = warna.kartuBorder;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     ctx.textAlign = "center";
     ctx.fillStyle = warna.teksMuted;
-    ctx.font = "600 16px Inter";
-    ctx.fillText(label.toUpperCase(), xTengah, yStats);
+    ctx.font = "700 13px Inter";
+    ctx.fillText(label.toUpperCase(), x + lebarPil / 2, yPil + 32);
     ctx.fillStyle = warna.teksUtama;
-    ctx.font = "700 34px 'Space Mono'";
-    ctx.fillText(nilai, xTengah, yStats + 42);
+    ctx.font = "700 30px 'Space Mono'";
+    ctx.fillText(nilai, x + lebarPil / 2, yPil + 68);
   }
 
-  gambarStatKotak(lebar * 0.28, "Target", teksTarget);
-  gambarStatKotak(lebar * 0.72, "Hari Tersisa", teksHari);
+  gambarPilStat(pad, "Target", teksTarget);
+  gambarPilStat(pad + lebarPil + 16, "Hari Tersisa", teksHari);
 
-  // Garis pemisah tipis
-  ctx.strokeStyle = warna.garisPemisah;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(lebar / 2, yStats - 30);
-  ctx.lineTo(lebar / 2, yStats + 44);
-  ctx.stroke();
+  // Label section mini grafik
+  const yLabelGrafik = yPil + tinggiPil + 56;
+  ctx.textAlign = "left";
+  ctx.fillStyle = warna.teksMuted;
+  ctx.font = "700 15px Inter";
+  ctx.fillText("PROGRES 7 HARI TERAKHIR", pad, yLabelGrafik);
 
   // Kartu mini grafik
-  const yGrafik = 520;
-  const tinggiGrafik = 260;
-  gambarKotakBulat(ctx, pad, yGrafik, lebar - pad * 2, tinggiGrafik, 24);
-  ctx.fillStyle = warna.kartuFill;
+  const yGrafik = yLabelGrafik + 24;
+  const tinggiGrafik = 240;
+  gambarKotakBulat(ctx, pad, yGrafik, lebarKonten, tinggiGrafik, 20);
+  ctx.fillStyle = warna.grafikFill;
   ctx.fill();
   ctx.strokeStyle = warna.kartuBorder;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1;
   ctx.stroke();
 
-  gambarMiniGrafikCanvas(ctx, dataAktif, pad + 36, yGrafik + 36, lebar - pad * 2 - 72, tinggiGrafik - 72, warna);
+  gambarMiniGrafikCanvas(ctx, dataAktif, pad + 32, yGrafik + 32, lebarKonten - 64, tinggiGrafik - 64, warna);
 
-  // Perubahan minggu ini
+  // Perubahan minggu ini - pil berwarna sesuai arah (turun=hijau/naik=merah)
   const perubahan = document.getElementById("ringkasanPerubahan").textContent;
+  const perubahanNaik = perubahan.trim().startsWith("+");
+  const yPerubahan = yGrafik + tinggiGrafik + 48;
+
+  gambarKotakBulat(ctx, pad, yPerubahan, lebarKonten, tinggiPil, 18);
+  ctx.fillStyle = perubahanNaik ? warna.pilFillNaik : warna.pilFillTurun;
+  ctx.fill();
+
+  // Susunan dibuat sama persis dengan pil Target/Hari Tersisa di atas:
+  // label di atas, angka di bawah, keduanya rata tengah.
   ctx.textAlign = "center";
   ctx.fillStyle = warna.teksMuted;
-  ctx.font = "600 18px Inter";
-  ctx.fillText("PERUBAHAN MINGGU INI", lebar / 2, 850);
-  ctx.fillStyle = warna.teksUtama;
-  ctx.font = "700 40px 'Space Mono'";
-  ctx.fillText(perubahan, lebar / 2, 895);
-
-  // Footer
-  ctx.fillStyle = warna.teksMutedLemah;
-  ctx.font = "400 16px Inter";
-  ctx.fillText("Dilacak pakai Weight Cut Tracker", lebar / 2, 955);
+  ctx.font = "700 13px Inter";
+  ctx.fillText("PERUBAHAN MINGGU INI", lebar / 2, yPerubahan + 32);
+  ctx.fillStyle = perubahanNaik ? warna.merah : warna.aksen;
+  ctx.font = "700 30px 'Space Mono'";
+  ctx.fillText(perubahan, lebar / 2, yPerubahan + 68);
 
   return canvas;
 }
 
 // Coba share sebagai FILE gambar (kalau device dukung). Return true
 // kalau berhasil dibagikan sebagai gambar, false kalau tidak didukung
-// (dan sudah otomatis di-download sebagai gantinya).
+// (dan sudah otomatis diunduh sebagai gantinya).
 async function bagikanSebagaiGambar(teksCaption) {
   const canvas = await buatGambarProgress();
 
@@ -1180,23 +1230,22 @@ async function bagikanSebagaiGambar(teksCaption) {
         return;
       }
 
-      const file = new File([blob], "progress-weight-cut.png", { type: "image/png" });
+      const file = new File([blob], "progres-weight-cut.png", { type: "image/png" });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], text: teksCaption });
         } catch (e) {
-          // User batal share - tidak masalah, anggap sudah selesai
+          // Pengguna membatalkan proses berbagi - tidak perlu ditangani
         }
         resolve(true);
         return;
       }
 
-      // Device tidak dukung share file - otomatis unduh gambarnya
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "progress-weight-cut.png";
+      a.download = "progres-weight-cut.png";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1209,23 +1258,24 @@ async function bagikanSebagaiGambar(teksCaption) {
 }
 
 btnShareProgress.addEventListener("click", async function () {
-  const nama = document.getElementById("nama").value || "Saya";
+  const nama = document.getElementById("nama").value || "Pengguna";
 
   const berhasilShareGambar = await bagikanSebagaiGambar(`Progres Weight Cut - ${nama}`);
 
   if (berhasilShareGambar) return;
 
-  // Fallback kalau device tidak dukung share gambar: gambarnya udah
-  // otomatis ke-download, sekarang buka WhatsApp dengan teks ringkasan
-  // siap kirim biar user tinggal lampirkan gambarnya secara manual.
+  // Fallback kalau perangkat tidak mendukung berbagi gambar langsung:
+  // gambar sudah otomatis diunduh, dan WhatsApp dibuka dengan teks
+  // ringkasan yang siap dikirim, agar pengguna tinggal melampirkan
+  // gambar tersebut secara manual.
   const dataAktif = catatanPeriodeAktif();
   const beratTerkini = dataAktif.length > 0 ? Number(dataAktif[dataAktif.length - 1].berat) : null;
   const targetBeratRaw = document.getElementById("target-berat").value;
   const tanggalWeighinRaw = document.getElementById("tanggal-weighin").value;
   const perubahan = document.getElementById("ringkasanPerubahan").textContent;
 
-  let teks = `💪 Progres Weight Cut - ${nama}\n\n`;
-  if (beratTerkini !== null) teks += `Berat sekarang: ${formatBerat(beratTerkini)}\n`;
+  let teks = `Progres Weight Cut - ${nama}\n\n`;
+  if (beratTerkini !== null) teks += `Berat saat ini: ${formatBerat(beratTerkini)}\n`;
   if (targetBeratRaw !== "") {
     const targetKg = bacaBeratKg(targetBeratRaw);
     teks += `Target: ${formatBerat(targetKg)}`;
@@ -1233,9 +1283,9 @@ btnShareProgress.addEventListener("click", async function () {
     teks += "\n";
   }
   if (!layarTarget.classList.contains("layar-tersembunyi") && angkaHari.textContent !== "–") {
-    teks += `${angkaHari.textContent} hari lagi menuju weigh-in!\n`;
+    teks += `${angkaHari.textContent} hari lagi menuju weigh-in.\n`;
   }
-  teks += `\nPerubahan minggu ini: ${perubahan}\n\nDilacak pakai Weight Cut Tracker (gambar sudah terunduh, lampirkan manual)`;
+  teks += `\nPerubahan minggu ini: ${perubahan}\n\nGambar progres telah diunduh. Silakan lampirkan secara manual pada pesan ini.\n\nWeight Cut Tracker`;
 
   if (navigator.share) {
     navigator.share({ text: teks }).catch(function () {});

@@ -171,6 +171,7 @@ supabaseClient.auth.onAuthStateChange(function (event, session) {
     authPassword.value = "";
     tampilkanPesan(pesanAuth, "", "");
     muatSemuaData();
+    cekStatusNotifikasi();
   } else {
     userSaatIni = null;
     authBox.classList.remove("auth-tersembunyi");
@@ -261,10 +262,41 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-// Satu tombol ini ngerjain semuanya: daftar Service Worker, minta izin,
-// subscribe ke push, simpan ke Supabase, LALU langsung minta server
-// kirim 1 notifikasi konfirmasi - jadi aktivasi + tes jadi satu langkah.
-btnAktifkanPush.addEventListener("click", async function () {
+// Dua ikon buat tombol (lonceng aktif / lonceng dicoret), ditukar lewat
+// innerHTML sesuai status - sama persis polanya kayak ikon mode gelap.
+const ikonLonceng =
+  '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></svg> Aktifkan Notifikasi';
+const ikonLoncengMati =
+  '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5" /><path d="M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /><path d="m2 2 20 20" /></svg> Matikan Notifikasi';
+
+// Ganti tampilan tombol sesuai status - true = sudah aktif (tombolnya
+// jadi tawaran buat matiin), false = belum aktif (tawaran buat aktifin)
+function perbaruiTombolNotifikasi(aktif) {
+  if (aktif) {
+    btnAktifkanPush.innerHTML = ikonLoncengMati;
+    btnAktifkanPush.classList.add("btn-matikan-notif");
+  } else {
+    btnAktifkanPush.innerHTML = ikonLonceng;
+    btnAktifkanPush.classList.remove("btn-matikan-notif");
+  }
+}
+
+// Cek pas halaman dibuka: kalau browser ini sebelumnya udah pernah
+// subscribe, tombolnya langsung ditampilin dalam status "aktif" (bukan
+// ketahuan "aktif"-nya cuma pas user coba klik "Aktifkan" lagi)
+async function cekStatusNotifikasi() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return;
+    const subscription = await registration.pushManager.getSubscription();
+    perbaruiTombolNotifikasi(!!subscription);
+  } catch (err) {
+    // Tidak kritis, biarin tombol di status default
+  }
+}
+
+async function aktifkanNotifikasi() {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     // Deteksi iPhone/iPad yang BELUM di-"Add to Home Screen" - di
     // Safari iOS, PushManager cuma tersedia kalau web-nya udah
@@ -330,12 +362,56 @@ btnAktifkanPush.addEventListener("click", async function () {
 
     if (errorKirim) {
       tampilkanPesan(statusPengingat, "Notifikasi aktif, tetapi pengujian pengiriman gagal: " + errorKirim.message, "error");
-      return;
+    } else {
+      tampilkanPesan(statusPengingat, `Notifikasi aktif! Anda akan diingatkan setiap jam ${inputJamPengingat.value}. Silakan periksa notifikasi konfirmasi yang baru saja dikirim.`, "sukses");
     }
 
-    tampilkanPesan(statusPengingat, `Notifikasi aktif! Anda akan diingatkan setiap jam ${inputJamPengingat.value}. Silakan periksa notifikasi konfirmasi yang baru saja dikirim.`, "sukses");
+    perbaruiTombolNotifikasi(true);
   } catch (err) {
     tampilkanPesan(statusPengingat, "Gagal mengaktifkan notifikasi: " + err.message, "error");
+  }
+}
+
+async function matikanNotifikasi() {
+  try {
+    tampilkanPesan(statusPengingat, "Mematikan notifikasi...", "");
+
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = registration ? await registration.pushManager.getSubscription() : null;
+
+    if (subscription) {
+      const endpoint = subscription.endpoint;
+
+      // Hapus dulu dari browser, baru dari database - biar walau salah
+      // satu gagal, statusnya tetap konsisten (kalau unsubscribe browser
+      // gagal, baris di database juga nggak kehapus, jadi bisa dicoba lagi)
+      await subscription.unsubscribe();
+
+      const { error } = await supabaseClient.from("push_subscriptions").delete().eq("endpoint", endpoint);
+
+      if (error) {
+        tampilkanPesan(statusPengingat, "Notifikasi dimatikan di perangkat ini, tetapi gagal dihapus dari server: " + error.message, "error");
+        perbaruiTombolNotifikasi(false);
+        return;
+      }
+    }
+
+    perbaruiTombolNotifikasi(false);
+    tampilkanPesan(statusPengingat, "Notifikasi berhasil dimatikan.", "sukses");
+  } catch (err) {
+    tampilkanPesan(statusPengingat, "Gagal mematikan notifikasi: " + err.message, "error");
+  }
+}
+
+// Satu tombol ini ngerjain semuanya tergantung statusnya saat ini:
+// kalau belum aktif, ngedaftar Service Worker + subscribe + simpan ke
+// Supabase + kirim notifikasi tes. Kalau sudah aktif, berhenti
+// subscribe dan hapus datanya dari Supabase.
+btnAktifkanPush.addEventListener("click", async function () {
+  if (btnAktifkanPush.classList.contains("btn-matikan-notif")) {
+    await matikanNotifikasi();
+  } else {
+    await aktifkanNotifikasi();
   }
 });
 

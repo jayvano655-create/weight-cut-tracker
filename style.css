@@ -703,6 +703,14 @@ form.card-group > button[type="submit"] {
   filter: brightness(1.04);
 }
 
+/* State notifikasi sudah aktif - tombolnya ganti jadi "Matikan",
+   gayanya outline merah biar jelas beda fungsi (bukan hijau solid) */
+.pengingat-box button.btn-matikan-notif {
+  background: none;
+  border: 1.5px solid var(--danger);
+  color: var(--danger);
+}
+
 .pengingat-box button:active {
   transform: translateY(1px) scale(0.97);
 }
